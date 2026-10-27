@@ -1,0 +1,96 @@
+<resources>
+    <string name="app_name">Grabadora Segura</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Estados (actividad y widget) -->
+    <string name="state_off">Protección apagada</string>
+    <string name="state_starting">Preparando…</string>
+    <string name="state_listening">Protección activa</string>
+    <string name="state_mic_busy">Micrófono ocupado</string>
+    <string name="state_recording">Grabando</string>
+
+    <string name="detail_no_phrase">Primero guarda tu frase secreta (abajo).</string>
+    <string name="detail_off">Actívala y el teléfono escuchará tu frase secreta, aunque la pantalla esté apagada.</string>
+    <string name="detail_starting">Cargando el reconocimiento de voz.</string>
+    <string name="detail_listening">Escuchando «%1$s». Al oírla, vibrará y empezará a grabar.</string>
+    <string name="detail_mic_busy">Otra app o una llamada está usando el micrófono. Se reintenta solo.</string>
+    <string name="detail_recording">La grabación se guarda mientras avanza.</string>
+    <string name="detail_recording_then_listen">Al detener, volverá a escuchar tu frase.</string>
+
+    <string name="action_enable_protection">Activar protección</string>
+    <string name="action_disable_protection">Desactivar</string>
+    <string name="action_record">Grabar</string>
+    <string name="action_stop">Detener</string>
+    <string name="action_disable">Desactivar</string>
+
+    <!-- Pendientes -->
+    <string name="issue_mic">Falta el permiso de micrófono. Sin él no se puede escuchar ni grabar.</string>
+    <string name="issue_notifications">Sin notificaciones no verás que está grabando ni podrás detenerlo desde ahí.</string>
+    <string name="issue_battery">El ahorro de batería puede cerrar la protección con la pantalla apagada.</string>
+    <string name="issue_action_allow">Permitir</string>
+    <string name="issue_action_adjust">Ajustar</string>
+    <string name="permission_go_settings">Activa el micrófono en Permisos.</string>
+
+    <!-- Frase secreta -->
+    <string name="phrase_title">Frase secreta</string>
+    <string name="phrase_help">De 2 a 6 palabras que no digas en una conversación normal. Cuando el teléfono la escuche, empezará a grabar.</string>
+    <string name="phrase_hint">Tu frase</string>
+    <string name="phrase_save">Guardar</string>
+    <string name="phrase_preparing">Preparando…</string>
+    <string name="phrase_test">Probar frase</string>
+    <string name="phrase_saved">Frase guardada</string>
+    <string name="phrase_error_short">Usa al menos %1$d palabras.</string>
+    <string name="phrase_error_long">Usa como máximo %1$d palabras.</string>
+    <string name="phrase_error_unknown">El reconocimiento de voz no conoce: %1$s. Prueba con otras palabras.</string>
+
+    <string name="test_stop">Detener prueba</string>
+    <string name="test_listening">Escuchando… di tu frase.</string>
+    <string name="test_recognized">Reconocida: «%1$s». Así se activará la grabación.</string>
+    <string name="test_heard">Escuché «%1$s» (confianza %2$d %%). Repítela más claro.</string>
+    <string name="test_timeout">No reconocí la frase en 10 segundos. Inténtalo otra vez o elige otra frase.</string>
+    <string name="test_mic_busy">No se pudo usar el micrófono. Cierra otras apps que lo usen e inténtalo de nuevo.</string>
+    <string name="test_mic_in_use">Desactiva la protección para probar: el micrófono está en uso.</string>
+
+    <!-- Grabaciones -->
+    <string name="recordings_title">Grabaciones</string>
+    <string name="recordings_empty">Aún no hay grabaciones.</string>
+    <string name="recording_play">Reproducir</string>
+    <string name="recording_stop">Detener reproducción</string>
+    <string name="recording_share">Compartir grabación</string>
+    <string name="recording_delete">Borrar</string>
+    <string name="recording_delete_title">¿Borrar esta grabación?</string>
+    <string name="recording_delete_message">No se puede deshacer.</string>
+    <string name="recording_cannot_play">No se puede reproducir esta grabación.</string>
+    <string name="recording_cannot_delete">No se pudo borrar.</string>
+
+    <!-- Notificaciones -->
+    <string name="channel_status">Estado de la protección</string>
+    <string name="channel_problems">Problemas</string>
+    <string name="notif_public_text">Servicio activo</string>
+    <string name="notif_starting_title">Preparando la protección…</string>
+    <string name="notif_listening_title">Protección activa</string>
+    <string name="notif_listening_text">Escuchando tu frase secreta</string>
+    <string name="notif_busy_title">Micrófono ocupado</string>
+    <string name="notif_busy_text">Se reintentará en unos segundos</string>
+    <string name="notif_recording_title">Grabando</string>
+    <string name="notif_recording_text">Toca Detener para terminar</string>
+    <string name="problem_title">Grabadora Segura necesita atención</string>
+    <string name="problem_cannot_start">No se pudo usar el micrófono. Abre la app y revisa los permisos.</string>
+    <string name="problem_no_phrase">Guarda una frase secreta en la app para activar la protección.</string>
+    <string name="problem_model">No se pudo cargar el reconocimiento de voz.</string>
+    <string name="problem_cannot_record">No se pudo empezar a grabar: el micrófono está ocupado.</string>
+    <string name="problem_recording_interrupted">La grabación se interrumpió. Lo grabado hasta ese momento se guardó.</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Grabadora Segura</string>
+    <string name="widget_description">Activa la protección por voz o graba con un toque</string>
+    <string name="widget_setup_title">Falta configurar</string>
+    <string name="widget_setup_detail">Abre la app para dar permisos y guardar tu frase</string>
+    <string name="widget_off_detail">Graba o activa la escucha</string>
+    <string name="widget_starting_detail">Cargando reconocimiento de voz</string>
+    <string name="widget_listening_detail">Escuchando tu frase</string>
+    <string name="widget_busy_detail">Reintentando…</string>
+    <string name="widget_action_open">Abrir</string>
+    <string name="widget_action_enable">Activar</string>
+    <string name="widget_action_disable">Desactivar</string>
+</resources>
