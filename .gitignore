@@ -1,0 +1,16 @@
+# Libro del curso (pesado y con derechos de autor)
+materials/*.pdf
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Modelo de voz Vosk (se descarga con project/scripts/download-model.sh)
+project/app/src/main/assets/model-es/
