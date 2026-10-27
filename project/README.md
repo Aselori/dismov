@@ -1,4 +1,4 @@
-# Grabadora Segura
+# Testigo
 
 App Android con widget que empieza a grabar audio al escuchar una frase secreta, pensada
 para situaciones de riesgo en las que no se puede tocar el teléfono.

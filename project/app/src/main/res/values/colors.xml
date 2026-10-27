@@ -1,27 +1,27 @@
 <resources>
-    <color name="primary">#0B6E69</color>
-    <color name="on_primary">#FFFFFF</color>
-    <color name="primary_container">#C9ECE8</color>
-    <color name="on_primary_container">#00201E</color>
-    <color name="secondary_container">#DCE6E4</color>
-    <color name="on_secondary_container">#152422</color>
-    <color name="background">#F7F7F5</color>
-    <color name="surface">#F7F7F5</color>
-    <color name="surface_container">#ECEEEC</color>
-    <color name="on_surface">#191C1C</color>
-    <color name="on_surface_variant">#454A49</color>
-    <color name="outline">#74797A</color>
-    <color name="recording">#B3261E</color>
-    <color name="issue_container">#FFF1D6</color>
+    <color name="primary">#13221F</color>
+    <color name="on_primary">#EDE6D8</color>
+    <color name="primary_container">#D9E3DE</color>
+    <color name="on_primary_container">#0B1513</color>
+    <color name="secondary_container">#E6E0D2</color>
+    <color name="on_secondary_container">#13221F</color>
+    <color name="background">#F6F3EC</color>
+    <color name="surface">#F6F3EC</color>
+    <color name="surface_container">#ECE7DC</color>
+    <color name="on_surface">#191C1B</color>
+    <color name="on_surface_variant">#4A4F4C</color>
+    <color name="outline">#7A7E79</color>
+    <color name="recording">#B83A28</color>
+    <color name="issue_container">#FBE9C8</color>
     <color name="on_issue_container">#3D2A00</color>
 
     <!-- Widget: siempre oscuro para que se lea sobre cualquier fondo de pantalla -->
-    <color name="widget_background">#F0161A1A</color>
-    <color name="widget_text">#FFFFFF</color>
-    <color name="widget_text_secondary">#B8C2C0</color>
-    <color name="widget_button">#33FFFFFF</color>
-    <color name="widget_primary">#4FB8B0</color>
-    <color name="widget_on_primary">#00201E</color>
-    <color name="widget_stop">#E5534B</color>
-    <color name="widget_recording">#FF8A80</color>
+    <color name="widget_background">#F213221F</color>
+    <color name="widget_text">#EDE6D8</color>
+    <color name="widget_text_secondary">#A9B3AE</color>
+    <color name="widget_button">#26EDE6D8</color>
+    <color name="widget_primary">#EDE6D8</color>
+    <color name="widget_on_primary">#13221F</color>
+    <color name="widget_stop">#E2553F</color>
+    <color name="widget_recording">#FF8A75</color>
 </resources>

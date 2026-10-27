@@ -450,7 +450,7 @@ public class ProtectionService extends Service {
 
     private Notification buildNotification() {
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_STATUS)
-                .setSmallIcon(R.drawable.ic_shield)
+                .setSmallIcon(R.drawable.ic_testigo)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
@@ -461,7 +461,7 @@ public class ProtectionService extends Service {
                 // En la pantalla de bloqueo solo se ve un texto neutro, sin acciones
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(new NotificationCompat.Builder(this, CHANNEL_STATUS)
-                        .setSmallIcon(R.drawable.ic_shield)
+                        .setSmallIcon(R.drawable.ic_testigo)
                         .setContentTitle(getString(R.string.app_name))
                         .setContentText(getString(R.string.notif_public_text))
                         .build());
@@ -480,12 +480,12 @@ public class ProtectionService extends Service {
                         .setContentText(getString(R.string.notif_listening_text))
                         .addAction(new NotificationCompat.Action(R.drawable.ic_mic,
                                 getString(R.string.action_record), pendingIntent(this, ACTION_RECORD)))
-                        .addAction(securedAction(R.drawable.ic_shield, R.string.action_disable, ACTION_DISABLE));
+                        .addAction(securedAction(R.drawable.ic_testigo, R.string.action_disable, ACTION_DISABLE));
                 break;
             case MIC_BUSY:
                 b.setContentTitle(getString(R.string.notif_busy_title))
                         .setContentText(getString(R.string.notif_busy_text))
-                        .addAction(securedAction(R.drawable.ic_shield, R.string.action_disable, ACTION_DISABLE));
+                        .addAction(securedAction(R.drawable.ic_testigo, R.string.action_disable, ACTION_DISABLE));
                 break;
             default:
                 b.setContentTitle(getString(R.string.notif_starting_title));
@@ -515,7 +515,7 @@ public class ProtectionService extends Service {
     private void showProblem(int textRes) {
         Log.w(TAG, "Problema: " + getString(textRes));
         Notification n = new NotificationCompat.Builder(this, CHANNEL_PROBLEMS)
-                .setSmallIcon(R.drawable.ic_shield)
+                .setSmallIcon(R.drawable.ic_testigo)
                 .setContentTitle(getString(R.string.problem_title))
                 .setContentText(getString(textRes))
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(textRes)))
@@ -544,7 +544,7 @@ public class ProtectionService extends Service {
     private void acquireWakeLock() {
         if (wakeLock == null) {
             PowerManager pm = getSystemService(PowerManager.class);
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GrabadoraSegura:protection");
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Testigo:protection");
             wakeLock.setReferenceCounted(false);
         }
         if (!wakeLock.isHeld()) {

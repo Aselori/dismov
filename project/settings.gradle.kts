@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GrabadoraSegura"
+rootProject.name = "Testigo"
 include(":app")

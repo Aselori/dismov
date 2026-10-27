@@ -1,0 +1,20 @@
+<!-- Marca para el encabezado: trazo del color del texto y punto coral -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <group
+        android:translateX="-30"
+        android:translateY="-30">
+        <path
+            android:pathData="M40,42L33,54L40,66M48,42L41,54L48,66M60,42L67,54L60,66M68,42L75,54L68,66"
+            android:strokeWidth="4.6"
+            android:strokeColor="?attr/colorOnSurface"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="@color/brand_coral"
+            android:pathData="M54,54m-4.2,0a4.2,4.2 0,1 1,8.4 0a4.2,4.2 0,1 1,-8.4 0" />
+    </group>
+</vector>
