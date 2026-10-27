@@ -17,7 +17,7 @@
     <string name="detail_recording">La grabación se guarda mientras avanza.</string>
     <string name="detail_recording_then_listen">Al detener, volverá a escuchar tu frase.</string>
 
-    <string name="action_enable_protection">Activar protección</string>
+    <string name="action_enable_protection">Activar</string>
     <string name="action_disable_protection">Desactivar</string>
     <string name="action_record">Grabar</string>
     <string name="action_stop">Detener</string>

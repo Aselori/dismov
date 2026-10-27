@@ -125,8 +125,14 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
     protected void onStart() {
         super.onStart();
         ProtectionState.addListener(this);
-        render();
         refreshRecordings();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Los diálogos del sistema (permisos, batería) solo pausan la actividad: aquí se vuelve a revisar
+        render();
     }
 
     @Override

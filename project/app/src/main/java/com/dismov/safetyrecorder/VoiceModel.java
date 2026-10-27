@@ -89,7 +89,9 @@ public final class VoiceModel {
         load(app, new Callback<Model>() {
             @Override
             public void onReady(Model ignored) {
-                File grFst = new File(app.getExternalFilesDir(null), TARGET_DIR + "/graph/Gr.fst");
+                // StorageService copia los assets a <files>/<TARGET_DIR>/<ASSET_DIR>
+                File grFst = new File(app.getExternalFilesDir(null),
+                        TARGET_DIR + "/" + ASSET_DIR + "/graph/Gr.fst");
                 background.execute(() -> {
                     try {
                         Set<String> words = ModelVocabulary.read(grFst);
