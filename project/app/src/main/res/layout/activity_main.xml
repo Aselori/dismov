@@ -74,7 +74,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        app:icon="@drawable/ic_shield" />
+                        android:maxLines="1" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_record"
@@ -83,7 +83,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:layout_weight="1"
-                        app:icon="@drawable/ic_mic" />
+                        android:maxLines="1" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
