@@ -12,7 +12,7 @@
     <string name="detail_no_phrase">Primero guarda tu frase secreta (abajo).</string>
     <string name="detail_off">Actívala y el teléfono escuchará tu frase secreta, aunque la pantalla esté apagada.</string>
     <string name="detail_starting">Cargando el reconocimiento de voz.</string>
-    <string name="detail_listening">Escuchando «%1$s». Al oírla, vibrará y empezará a grabar.</string>
+    <string name="detail_listening">Escuchando tu frase. Al oírla, vibrará y empezará a grabar.</string>
     <string name="detail_mic_busy">Otra app o una llamada está usando el micrófono. Se reintenta solo.</string>
     <string name="detail_recording">La grabación se guarda mientras avanza.</string>
     <string name="detail_recording_then_listen">Al detener, volverá a escuchar tu frase.</string>
@@ -45,7 +45,7 @@
 
     <string name="test_stop">Detener prueba</string>
     <string name="test_listening">Escuchando… di tu frase.</string>
-    <string name="test_recognized">Reconocida: «%1$s». Así se activará la grabación.</string>
+    <string name="test_recognized">Reconocida. Así se activará la grabación.</string>
     <string name="test_heard">Escuché «%1$s» (confianza %2$d %%). Repítela más claro.</string>
     <string name="test_timeout">No reconocí la frase en 10 segundos. Inténtalo otra vez o elige otra frase.</string>
     <string name="test_mic_busy">No se pudo usar el micrófono. Cierra otras apps que lo usen e inténtalo de nuevo.</string>

@@ -188,7 +188,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
                     break;
                 case LISTENING:
                     statusTitle.setText(R.string.state_listening);
-                    statusDetail.setText(getString(R.string.detail_listening, PhraseStore.phrase(this)));
+                    statusDetail.setText(R.string.detail_listening);
                     break;
                 case MIC_BUSY:
                     statusTitle.setText(R.string.state_mic_busy);
@@ -353,7 +353,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
             @Override
             public void onHeard(String text, double confidence, boolean recognized) {
                 if (recognized) {
-                    stopTest(getString(R.string.test_recognized, text));
+                    stopTest(getString(R.string.test_recognized));
                 } else {
                     showTestResult(getString(R.string.test_heard, text,
                             Math.round(confidence * 100)));
