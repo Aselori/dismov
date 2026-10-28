@@ -91,6 +91,16 @@ This is not "a quick way to record". The goal is to **start audio recording for 
     - A successful test doesn't repeat it.
   - Lint: 0 errors.
   - **NOT verified on a device or emulator:** neither change has run yet. Both need to be checked at runtime in A/F.
+- **Trigger methods (approved 2026-10-28, implemented):**
+  - Protection waits for the **secret phrase** (microphone open) and/or the **power button ×3** (microphone closed, state `ARMED`).
+  - Each method has an optional "También la detiene" switch, **off by default**.
+  - Stopping by phrase or button is ignored for the first 5 s after recording starts.
+  - At least one method must stay on.
+  - Stopping by phrase listens in parallel with the recording (Android 10+ concurrent capture). If the phone doesn't allow it, the recording continues and the user is warned. **Not tested on a device yet.**
+  - If the voice model fails and the button is on, protection continues with the button only.
+  - `PowerPressDetector`: 3 screen on/off changes within 2 s.
+  - 59 tests in total. Mutants caught for the 5 s margin, the parallel listening and the button option.
+  - **To check on the realme:** what 2 and 5 presses already do (camera, SOS), whether the screen events arrive with the phone locked and in a pocket, possible false triggers from the proximity sensor during calls.
 - Start-on-boot option: **dropped** (2026-10-28). The professor agrees it doesn't make sense. The stash was deleted.
 - Emulator: KVM works, emulator 37.1.11 is installed. The SDK command-line tools and an Android 16 image (`system-images;android-36;google_apis;x86_64`) are missing. Installing them needs user approval.
 - Test audio: a PipeWire null sink plus `PULSE_SOURCE=<sink>.monitor` when launching the emulator feeds WAV files into the emulator's microphone without changing the system's default input.
