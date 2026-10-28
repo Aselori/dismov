@@ -70,12 +70,16 @@
     <string name="notif_starting_title">Preparando la protección…</string>
     <string name="notif_listening_title">Protección activa</string>
     <string name="notif_listening_text">Escuchando tu frase secreta</string>
+    <string name="notif_listening_button_text">Escuchando tu frase · botón de encendido 3 veces</string>
+    <string name="notif_armed_text">Botón de encendido 3 veces para grabar</string>
     <string name="notif_busy_title">Micrófono ocupado</string>
     <string name="notif_busy_text">Se reintentará en unos segundos</string>
     <string name="notif_recording_title">Grabando</string>
     <string name="notif_recording_text">Toca Detener para terminar</string>
     <string name="problem_title">Testigo necesita atención</string>
     <string name="problem_cannot_start">No se pudo usar el micrófono. Abre la app y revisa los permisos.</string>
+    <string name="problem_no_trigger">Activa al menos un método (frase o botón de encendido) para usar la protección.</string>
+    <string name="problem_voice_stop_unavailable">Este teléfono no permite escuchar mientras graba: la frase no podrá detener esta grabación. Detenla desde la notificación o el widget.</string>
     <string name="problem_no_phrase">Guarda una frase secreta en la app para activar la protección.</string>
     <string name="problem_model">No se pudo cargar el reconocimiento de voz.</string>
     <string name="problem_cannot_record">No se pudo empezar a grabar: el micrófono está ocupado.</string>

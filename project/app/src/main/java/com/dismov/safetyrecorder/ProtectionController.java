@@ -9,18 +9,27 @@ import java.util.List;
  * (activar, grabar, detener) y cada evento (frase escuchada, micrófono ocupado, error).
  * {@link ProtectionService} la conecta con Vosk, MediaRecorder, la notificación y el widget.
  *
- * <p>Regla central: escuchar y grabar nunca ocurren a la vez, porque el micrófono
- * solo lo puede usar uno. Todo se llama desde un mismo hilo (el principal).
+ * <p>La protección se activa con uno o dos métodos: la frase secreta (escucha con el
+ * micrófono) y el botón de encendido 3 veces (no usa el micrófono mientras espera).
+ * Opcionalmente, cada método también detiene la grabación. Antes de grabar se suelta
+ * la escucha para que la grabadora tenga el micrófono; la escucha para detener se abre
+ * después, en paralelo. Todo se llama desde un mismo hilo (el principal).
  */
 public final class ProtectionController {
 
     static final long LISTEN_RETRY_MS = 3000;
     static final long RECORD_RETRY_MS = 400;
     static final int RECORD_ATTEMPTS = 5;
+    /** Tras empezar a grabar, la frase o el botón no la detienen durante este tiempo. */
+    static final long STOP_GUARD_MS = 5000;
 
     public enum Problem {
         /** No hay frase guardada o la gramática no es válida. */
         NO_PHRASE,
+        /** Ningún método de activación está encendido. */
+        NO_TRIGGER,
+        /** El teléfono no permite escuchar mientras graba: la frase no podrá detener esta grabación. */
+        VOICE_STOP_UNAVAILABLE,
         /** No se pudo cargar el modelo de voz. */
         MODEL,
         /** Se reintentó y el micrófono siguió ocupado. */
@@ -66,9 +75,20 @@ public final class ProtectionController {
         List<String> phraseWords();
 
         void setProtectionWanted(boolean wanted);
+
+        boolean voiceStart();
+
+        boolean voiceStop();
+
+        boolean buttonStart();
+
+        boolean buttonStop();
     }
 
     interface Scheduler {
+        /** Reloj monotónico en milisegundos. */
+        long now();
+
         void schedule(Runnable task, long delayMs);
 
         void cancel(Runnable task);
@@ -103,6 +123,7 @@ public final class ProtectionController {
     /** Cambia con cada apertura o cierre: descarta respuestas de aperturas viejas. */
     private int earsGeneration;
     private int recordAttempts;
+    private long recordingStartedAt;
     private boolean destroyed;
 
     ProtectionController(Ears ears, Recorder recorder, Settings settings, Scheduler scheduler, Output output) {
@@ -124,8 +145,14 @@ public final class ProtectionController {
     // ---- Órdenes ----
 
     void enable() {
-        if (settings.grammar() == null) {
+        boolean voice = settings.voiceStart() && settings.grammar() != null;
+        if (settings.voiceStart() && settings.grammar() == null) {
             output.onProblem(Problem.NO_PHRASE);
+        }
+        if (!voice && !settings.buttonStart()) {
+            if (!settings.voiceStart()) {
+                output.onProblem(Problem.NO_TRIGGER);
+            }
             if (!recording) {
                 shutdown();
             }
@@ -133,14 +160,14 @@ public final class ProtectionController {
         }
         protectionOn = true;
         settings.setProtectionWanted(true);
+        // Reinicia la escucha por si cambió la frase o los métodos
+        closeEars();
         if (recording) {
-            // Al detener la grabación volverá a escuchar
             setStatus(Status.RECORDING);
+            startListening(); // escucha para detener, si está activada
             return;
         }
-        // Reinicia la escucha por si cambió la frase
-        closeEars();
-        startListening();
+        waitForTrigger();
     }
 
     void disable() {
@@ -159,8 +186,12 @@ public final class ProtectionController {
     }
 
     void stop() {
+        boolean active = recording || recordAttempts > 0;
         stopRecording();
-        continueAfterRecording();
+        // Un "detener" viejo (por ejemplo, de un widget desactualizado) no reinicia la escucha
+        if (active || !protectionOn) {
+            continueAfterRecording();
+        }
     }
 
     /** Android no dejó entrar en primer plano con micrófono: no hay nada que hacer. */
@@ -181,10 +212,28 @@ public final class ProtectionController {
     // ---- Eventos ----
 
     void onHeard(String text, double confidence) {
-        if (status != Status.LISTENING || text.isEmpty()) {
+        if (text.isEmpty() || !PhraseMatcher.triggers(text, confidence, settings.phraseWords())) {
             return;
         }
-        if (PhraseMatcher.triggers(text, confidence, settings.phraseWords())) {
+        if (recording) {
+            if (settings.voiceStop() && pastStopGuard()) {
+                stop();
+            }
+        } else if (status == Status.LISTENING) {
+            startRecording();
+        }
+    }
+
+    /** El botón de encendido se pulsó 3 veces seguidas. */
+    void onButtonPattern() {
+        if (destroyed) {
+            return;
+        }
+        if (recording) {
+            if (settings.buttonStop() && pastStopGuard()) {
+                stop();
+            }
+        } else if (protectionOn && settings.buttonStart()) {
             startRecording();
         }
     }
@@ -194,6 +243,11 @@ public final class ProtectionController {
             return;
         }
         closeEars();
+        if (recording) {
+            // Escuchar en paralelo a la grabación falló: la grabación sigue, sin detener por voz
+            output.onProblem(Problem.VOICE_STOP_UNAVAILABLE);
+            return;
+        }
         setStatus(Status.MIC_BUSY);
         scheduler.schedule(retryListening, LISTEN_RETRY_MS);
     }
@@ -208,24 +262,37 @@ public final class ProtectionController {
 
     // ---- Escucha ----
 
+    /** ¿Debe estar abierta la escucha ahora? */
+    private boolean wantsEars() {
+        if (destroyed || settings.grammar() == null) {
+            return false;
+        }
+        return recording ? settings.voiceStop() : protectionOn && settings.voiceStart();
+    }
+
+    /** Protección activa sin grabar: escucha la frase, o espera solo el botón con el micrófono cerrado. */
+    private void waitForTrigger() {
+        if (wantsEars()) {
+            startListening();
+        } else {
+            setStatus(Status.ARMED);
+        }
+    }
+
     private void startListening() {
         scheduler.cancel(retryListening);
-        if (!protectionOn || recording || earsActive || destroyed) {
+        if (earsActive || !wantsEars()) {
             return;
         }
-        String grammar = settings.grammar();
-        if (grammar == null) {
-            output.onProblem(Problem.NO_PHRASE);
-            shutdown();
-            return;
+        if (!recording) {
+            setStatus(Status.STARTING);
         }
-        setStatus(Status.STARTING);
         earsActive = true;
         int generation = ++earsGeneration;
-        ears.open(grammar, new OpenCallback() {
+        ears.open(settings.grammar(), new OpenCallback() {
             @Override
             public void onOpened() {
-                if (generation == earsGeneration) {
+                if (generation == earsGeneration && !recording) {
                     setStatus(Status.LISTENING);
                 }
             }
@@ -235,34 +302,46 @@ public final class ProtectionController {
                 if (generation != earsGeneration) {
                     return;
                 }
-                // Otra app (o una llamada) tiene el micrófono: se reintenta solo
                 earsActive = false;
+                if (recording) {
+                    // El teléfono no deja escuchar mientras graba
+                    output.onProblem(Problem.VOICE_STOP_UNAVAILABLE);
+                    return;
+                }
+                // Otra app (o una llamada) tiene el micrófono: se reintenta solo
                 setStatus(Status.MIC_BUSY);
                 scheduler.schedule(retryListening, LISTEN_RETRY_MS);
             }
 
             @Override
             public void onModelError() {
-                if (generation != earsGeneration) {
-                    return;
-                }
-                earsActive = false;
-                output.onProblem(Problem.MODEL);
-                if (!recording) {
-                    shutdown();
+                if (generation == earsGeneration) {
+                    earsActive = false;
+                    voiceFailed(Problem.MODEL);
                 }
             }
 
             @Override
             public void onGrammarError() {
-                if (generation != earsGeneration) {
-                    return;
+                if (generation == earsGeneration) {
+                    earsActive = false;
+                    voiceFailed(Problem.NO_PHRASE);
                 }
-                earsActive = false;
-                output.onProblem(Problem.NO_PHRASE);
-                shutdown();
             }
         });
+    }
+
+    /** La voz no funciona: si el botón está activo, la protección sigue solo con el botón. */
+    private void voiceFailed(Problem problem) {
+        output.onProblem(problem);
+        if (recording) {
+            return;
+        }
+        if (protectionOn && settings.buttonStart()) {
+            setStatus(Status.ARMED);
+        } else {
+            shutdown();
+        }
     }
 
     private void closeEars() {
@@ -296,8 +375,14 @@ public final class ProtectionController {
         }
         recordAttempts = 0;
         recording = true;
+        recordingStartedAt = scheduler.now();
         status = Status.RECORDING;
         output.onRecordingStarted(protectionOn);
+        startListening(); // en paralelo, solo si la frase también detiene
+    }
+
+    private boolean pastStopGuard() {
+        return scheduler.now() - recordingStartedAt >= STOP_GUARD_MS;
     }
 
     private void stopRecording() {
@@ -311,8 +396,9 @@ public final class ProtectionController {
     }
 
     private void continueAfterRecording() {
+        closeEars(); // la escucha para detener, si estaba abierta
         if (protectionOn) {
-            startListening();
+            waitForTrigger();
         } else {
             shutdown();
         }

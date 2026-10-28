@@ -67,7 +67,7 @@ public class RecorderWidget extends AppWidgetProvider {
         setButton(context, v, R.id.widget_record, context.getString(R.string.action_record),
                 R.drawable.widget_button, record);
 
-        if (!micGranted || !PhraseStore.hasPhrase(context)) {
+        if (!micGranted || !AppPrefs.hasPhrase(context)) {
             v.setTextViewText(R.id.widget_status, context.getString(R.string.widget_setup_title));
             v.setTextViewText(R.id.widget_detail, context.getString(R.string.widget_setup_detail));
             setButton(context, v, R.id.widget_protection, context.getString(R.string.widget_action_open),

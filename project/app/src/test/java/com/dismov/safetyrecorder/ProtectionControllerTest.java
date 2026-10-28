@@ -2,6 +2,7 @@ package com.dismov.safetyrecorder;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.dismov.safetyrecorder.ProtectionController.Problem;
@@ -353,6 +354,181 @@ public class ProtectionControllerTest {
         assertFalse(ears.isOpen());
     }
 
+    // ---- Botón de encendido ----
+
+    @Test
+    public void buttonOnlyWaitsWithMicClosed() {
+        settings.voiceStart = false;
+        settings.buttonStart = true;
+        controller.enable();
+        assertEquals(Status.ARMED, controller.status());
+        assertFalse("solo con el botón, el micrófono queda cerrado", ears.isOpen());
+        assertNull(ears.openedWith);
+    }
+
+    @Test
+    public void buttonPatternStartsRecordingWhenArmed() {
+        settings.voiceStart = false;
+        settings.buttonStart = true;
+        controller.enable();
+        controller.onButtonPattern();
+        assertTrue(recorder.recording);
+        assertEquals(Status.RECORDING, controller.status());
+    }
+
+    @Test
+    public void buttonPatternWhileListeningReleasesMicAndRecords() {
+        settings.buttonStart = true;
+        listening();
+        controller.onButtonPattern();
+        assertTrue(recorder.recording);
+        assertTrue(recorder.startedAfterEarsClosed);
+    }
+
+    @Test
+    public void buttonPatternIgnoredWithoutProtectionOrWhenDisabled() {
+        settings.buttonStart = true;
+        controller.onButtonPattern();          // protección apagada
+        assertFalse(recorder.recording);
+
+        settings.buttonStart = false;
+        listening();
+        controller.onButtonPattern();          // el botón no está entre los métodos
+        assertFalse(recorder.recording);
+    }
+
+    @Test
+    public void buttonStopsOnlyWhenOptionIsOnAndAfterGuard() {
+        settings.voiceStart = false;
+        settings.buttonStart = true;
+        controller.enable();
+        controller.onButtonPattern();
+        scheduler.advance(ProtectionController.STOP_GUARD_MS);
+        controller.onButtonPattern();
+        assertTrue("por defecto el botón no detiene", recorder.recording);
+
+        settings.buttonStop = true;
+        controller.stop();
+        controller.onButtonPattern();          // nueva grabación
+        scheduler.advance(ProtectionController.STOP_GUARD_MS - 1);
+        controller.onButtonPattern();
+        assertTrue("dentro de los primeros segundos no detiene", recorder.recording);
+
+        scheduler.advance(1);
+        controller.onButtonPattern();
+        assertFalse(recorder.recording);
+        assertEquals("vuelve a esperar el botón", Status.ARMED, controller.status());
+    }
+
+    // ---- Detener con la frase ----
+
+    @Test
+    public void voiceStopListensInParallelWhileRecording() {
+        settings.voiceStop = true;
+        listening();
+        controller.onHeard(PHRASE, 0.9);
+        assertTrue(recorder.recording);
+        assertTrue("primero graba, después vuelve a escuchar", recorder.startedAfterEarsClosed);
+        assertTrue(ears.isOpen());
+        ears.completeOpen();
+        assertEquals("sigue en estado grabando", Status.RECORDING, controller.status());
+
+        controller.onHeard(PHRASE, 0.9);
+        assertTrue("la misma frase que inició no la detiene al instante", recorder.recording);
+
+        scheduler.advance(ProtectionController.STOP_GUARD_MS);
+        controller.onHeard(PHRASE, 0.9);
+        assertFalse(recorder.recording);
+        ears.completeOpen();
+        assertEquals(Status.LISTENING, controller.status());
+    }
+
+    @Test
+    public void phraseNeverStopsByDefault() {
+        listening();
+        controller.onHeard(PHRASE, 0.9);
+        scheduler.advance(ProtectionController.STOP_GUARD_MS * 10);
+        controller.onHeard(PHRASE, 0.9);
+        assertTrue(recorder.recording);
+        assertFalse("sin la opción, no se escucha mientras graba", ears.isOpen());
+    }
+
+    @Test
+    public void voiceStopUnavailableKeepsRecordingWithoutRetrying() {
+        settings.voiceStop = true;
+        listening();
+        controller.onHeard(PHRASE, 0.9);
+        ears.failOpenMicBusy();
+        assertEquals(Arrays.asList(Problem.VOICE_STOP_UNAVAILABLE), output.problems);
+        assertTrue(recorder.recording);
+        assertEquals(Status.RECORDING, controller.status());
+        scheduler.advance(ProtectionController.LISTEN_RETRY_MS * 3);
+        assertFalse("no reintenta escuchar mientras graba", ears.isOpen());
+    }
+
+    @Test
+    public void listenErrorDuringRecordingDoesNotStopIt() {
+        settings.voiceStop = true;
+        listening();
+        controller.onHeard(PHRASE, 0.9);
+        ears.completeOpen();
+        controller.onListenError();
+        assertTrue(recorder.recording);
+        assertEquals(Status.RECORDING, controller.status());
+        assertEquals(Arrays.asList(Problem.VOICE_STOP_UNAVAILABLE), output.problems);
+    }
+
+    // ---- Combinaciones y respaldo ----
+
+    @Test
+    public void noTriggerReportsAndShutsDown() {
+        settings.voiceStart = false;
+        settings.buttonStart = false;
+        controller.enable();
+        assertEquals(Arrays.asList(Problem.NO_TRIGGER), output.problems);
+        assertTrue(output.shutdown);
+    }
+
+    @Test
+    public void missingPhraseFallsBackToButton() {
+        settings.grammar = null;
+        settings.buttonStart = true;
+        controller.enable();
+        assertEquals(Arrays.asList(Problem.NO_PHRASE), output.problems);
+        assertEquals(Status.ARMED, controller.status());
+        assertFalse(output.shutdown);
+    }
+
+    @Test
+    public void modelErrorFallsBackToButton() {
+        settings.buttonStart = true;
+        controller.enable();
+        ears.failOpenModel();
+        assertEquals(Status.ARMED, controller.status());
+        assertFalse(output.shutdown);
+        controller.onButtonPattern();
+        assertTrue(recorder.recording);
+    }
+
+    @Test
+    public void staleStopWhileListeningKeepsListening() {
+        listening();
+        int closes = ears.closeCount;
+        controller.stop();
+        assertEquals(Status.LISTENING, controller.status());
+        assertEquals(closes, ears.closeCount);
+    }
+
+    @Test
+    public void changingMethodsWhileListeningReconfigures() {
+        settings.buttonStart = true;
+        listening();
+        settings.voiceStart = false;
+        controller.enable();
+        assertEquals(Status.ARMED, controller.status());
+        assertFalse(ears.isOpen());
+    }
+
     // ---- Dobles de prueba ----
 
     private final class FakeEars implements ProtectionController.Ears {
@@ -438,9 +614,34 @@ public class ProtectionControllerTest {
         }
     }
 
+    /** Por defecto solo la frase inicia la grabación, para probar cada método por separado. */
     private static final class FakeSettings implements ProtectionController.Settings {
         String grammar = PHRASE;
         boolean protectionWanted;
+        boolean voiceStart = true;
+        boolean voiceStop;
+        boolean buttonStart;
+        boolean buttonStop;
+
+        @Override
+        public boolean voiceStart() {
+            return voiceStart;
+        }
+
+        @Override
+        public boolean voiceStop() {
+            return voiceStop;
+        }
+
+        @Override
+        public boolean buttonStart() {
+            return buttonStart;
+        }
+
+        @Override
+        public boolean buttonStop() {
+            return buttonStop;
+        }
 
         @Override
         public String grammar() {
@@ -463,6 +664,11 @@ public class ProtectionControllerTest {
         private long now;
         private final List<long[]> times = new ArrayList<>();
         private final List<Runnable> tasks = new ArrayList<>();
+
+        @Override
+        public long now() {
+            return now;
+        }
 
         @Override
         public void schedule(Runnable task, long delayMs) {

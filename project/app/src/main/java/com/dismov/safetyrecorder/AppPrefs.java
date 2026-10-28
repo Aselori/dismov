@@ -7,16 +7,20 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/** Preferencias de la app: la frase secreta y si el usuario dejó la protección activada. */
-public final class PhraseStore {
+/** Preferencias de la app: la frase secreta, los métodos de activación y si la protección quedó activada. */
+public final class AppPrefs {
 
     private static final String PREFS = "settings";
     private static final String KEY_PHRASE = "phrase";
     private static final String KEY_WORDS = "phrase_words";
     private static final String KEY_GRAMMAR = "phrase_grammar";
     private static final String KEY_PROTECTION_WANTED = "protection_wanted";
+    private static final String KEY_VOICE_START = "voice_start";
+    private static final String KEY_VOICE_STOP = "voice_stop";
+    private static final String KEY_BUTTON_START = "button_start";
+    private static final String KEY_BUTTON_STOP = "button_stop";
 
-    private PhraseStore() {
+    private AppPrefs() {
     }
 
     private static SharedPreferences prefs(Context context) {
@@ -56,5 +60,38 @@ public final class PhraseStore {
 
     public static boolean isProtectionWanted(Context context) {
         return prefs(context).getBoolean(KEY_PROTECTION_WANTED, false);
+    }
+
+    // ---- Métodos de activación: por defecto ambos inician y ninguno detiene ----
+
+    public static boolean voiceStart(Context context) {
+        return prefs(context).getBoolean(KEY_VOICE_START, true);
+    }
+
+    public static boolean voiceStop(Context context) {
+        return prefs(context).getBoolean(KEY_VOICE_STOP, false);
+    }
+
+    public static boolean buttonStart(Context context) {
+        return prefs(context).getBoolean(KEY_BUTTON_START, true);
+    }
+
+    public static boolean buttonStop(Context context) {
+        return prefs(context).getBoolean(KEY_BUTTON_STOP, false);
+    }
+
+    public static void setTriggers(Context context, boolean voiceStart, boolean voiceStop,
+                                   boolean buttonStart, boolean buttonStop) {
+        prefs(context).edit()
+                .putBoolean(KEY_VOICE_START, voiceStart)
+                .putBoolean(KEY_VOICE_STOP, voiceStart && voiceStop)
+                .putBoolean(KEY_BUTTON_START, buttonStart)
+                .putBoolean(KEY_BUTTON_STOP, buttonStart && buttonStop)
+                .apply();
+    }
+
+    /** ¿Hay al menos un método que pueda iniciar la grabación? */
+    public static boolean canProtect(Context context) {
+        return (voiceStart(context) && hasPhrase(context)) || buttonStart(context);
     }
 }

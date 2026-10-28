@@ -7,8 +7,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
@@ -60,6 +62,17 @@ public class ProtectionService extends Service implements ProtectionController.O
     private AudioRecorder recorder;
     private PowerManager.WakeLock wakeLock;
     private boolean inForeground;
+    private final PowerPressDetector powerPresses = new PowerPressDetector();
+    /** Cada pulsación del botón de encendido enciende o apaga la pantalla. */
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (powerPresses.onPress(SystemClock.elapsedRealtime())) {
+                Log.d(TAG, "Botón de encendido 3 veces");
+                controller.onButtonPattern();
+            }
+        }
+    };
 
     public static void send(Context context, String action) {
         ContextCompat.startForegroundService(context, intent(context, action));
@@ -92,6 +105,9 @@ public class ProtectionService extends Service implements ProtectionController.O
         });
         controller = new ProtectionController(ears, recorder, new PrefsSettings(this),
                 new HandlerScheduler(handler), this);
+        IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        screen.addAction(Intent.ACTION_SCREEN_OFF);
+        ContextCompat.registerReceiver(this, screenReceiver, screen, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
@@ -100,7 +116,7 @@ public class ProtectionService extends Service implements ProtectionController.O
         boolean restartedBySystem = action == null;
         if (restartedBySystem) {
             // El sistema mató el proceso y recrea el servicio (START_STICKY)
-            if (!PhraseStore.isProtectionWanted(this)) {
+            if (!AppPrefs.isProtectionWanted(this)) {
                 stopSelf();
                 return START_NOT_STICKY;
             }
@@ -131,6 +147,7 @@ public class ProtectionService extends Service implements ProtectionController.O
 
     @Override
     public void onDestroy() {
+        unregisterReceiver(screenReceiver);
         controller.destroy();
         handler.removeCallbacksAndMessages(null);
         releaseWakeLock();
@@ -244,8 +261,9 @@ public class ProtectionService extends Service implements ProtectionController.O
                         .addAction(securedAction(R.drawable.ic_stop, R.string.action_stop, ACTION_STOP));
                 break;
             case LISTENING:
+            case ARMED:
                 b.setContentTitle(getString(R.string.notif_listening_title))
-                        .setContentText(getString(R.string.notif_listening_text))
+                        .setContentText(getString(triggersText(ProtectionState.status())))
                         .addAction(new NotificationCompat.Action(R.drawable.ic_mic,
                                 getString(R.string.action_record), pendingIntent(this, ACTION_RECORD)))
                         .addAction(securedAction(R.drawable.ic_testigo, R.string.action_disable, ACTION_DISABLE));
@@ -259,6 +277,15 @@ public class ProtectionService extends Service implements ProtectionController.O
                 b.setContentTitle(getString(R.string.notif_starting_title));
         }
         return b.build();
+    }
+
+    /** Qué está esperando la protección, sin revelar la frase. */
+    private int triggersText(Status status) {
+        boolean button = AppPrefs.buttonStart(this);
+        if (status == Status.ARMED) {
+            return R.string.notif_armed_text;
+        }
+        return button ? R.string.notif_listening_button_text : R.string.notif_listening_text;
     }
 
     /** Acción que pide desbloquear el teléfono: así nadie más la usa desde la pantalla de bloqueo. */
@@ -286,6 +313,12 @@ public class ProtectionService extends Service implements ProtectionController.O
         switch (problem) {
             case NO_PHRASE:
                 textRes = R.string.problem_no_phrase;
+                break;
+            case NO_TRIGGER:
+                textRes = R.string.problem_no_trigger;
+                break;
+            case VOICE_STOP_UNAVAILABLE:
+                textRes = R.string.problem_voice_stop_unavailable;
                 break;
             case MODEL:
                 textRes = R.string.problem_model;
@@ -377,17 +410,37 @@ public class ProtectionService extends Service implements ProtectionController.O
 
         @Override
         public String grammar() {
-            return PhraseStore.grammar(context);
+            return AppPrefs.grammar(context);
         }
 
         @Override
         public List<String> phraseWords() {
-            return PhraseStore.words(context);
+            return AppPrefs.words(context);
         }
 
         @Override
         public void setProtectionWanted(boolean wanted) {
-            PhraseStore.setProtectionWanted(context, wanted);
+            AppPrefs.setProtectionWanted(context, wanted);
+        }
+
+        @Override
+        public boolean voiceStart() {
+            return AppPrefs.voiceStart(context);
+        }
+
+        @Override
+        public boolean voiceStop() {
+            return AppPrefs.voiceStop(context);
+        }
+
+        @Override
+        public boolean buttonStart() {
+            return AppPrefs.buttonStart(context);
+        }
+
+        @Override
+        public boolean buttonStop() {
+            return AppPrefs.buttonStop(context);
         }
     }
 
@@ -406,6 +459,11 @@ public class ProtectionService extends Service implements ProtectionController.O
         @Override
         public void cancel(Runnable task) {
             handler.removeCallbacks(task);
+        }
+
+        @Override
+        public long now() {
+            return SystemClock.elapsedRealtime();
         }
     }
 }

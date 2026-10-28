@@ -20,8 +20,10 @@ public final class ProtectionState {
         OFF,
         /** Cargando el modelo de voz o abriendo el micrófono. */
         STARTING,
-        /** Esperando la frase secreta. */
+        /** Esperando la frase secreta (micrófono abierto). */
         LISTENING,
+        /** Protección activa solo con el botón: espera las pulsaciones con el micrófono cerrado. */
+        ARMED,
         /** Otra app usa el micrófono; se reintenta solo. */
         MIC_BUSY,
         RECORDING

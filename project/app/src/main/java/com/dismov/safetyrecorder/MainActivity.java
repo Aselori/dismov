@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
         saveButton.setOnClickListener(v -> savePhrase());
         testButton.setOnClickListener(v -> toggleTest());
 
-        phraseInput.setText(PhraseStore.phrase(this));
+        phraseInput.setText(AppPrefs.phrase(this));
         setPhraseControlsEnabled(false);
         saveButton.setText(R.string.phrase_preparing);
         VoiceModel.vocabulary(this, new VoiceModel.Callback<Map<String, List<String>>>() {
@@ -168,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
     private void render() {
         Status status = ProtectionState.status();
         lastStatus = status;
-        boolean hasPhrase = PhraseStore.hasPhrase(this);
+        boolean hasPhrase = AppPrefs.hasPhrase(this);
         boolean recording = status == Status.RECORDING;
 
         statusChronometer.setVisibility(recording ? View.VISIBLE : View.GONE);
@@ -323,7 +323,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
             return;
         }
         String phrase = phraseInput.getText().toString();
-        PhraseStore.save(this, phrase, result);
+        AppPrefs.save(this, phrase, result);
         Toast.makeText(this, R.string.phrase_saved, Toast.LENGTH_SHORT).show();
         if (ProtectionState.isProtectionOn()) {
             // Reinicia la escucha con la frase nueva
