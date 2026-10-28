@@ -91,7 +91,7 @@ This is not "a quick way to record". The goal is to **start audio recording for 
     - A successful test doesn't repeat it.
   - Lint: 0 errors.
   - **NOT verified on a device or emulator:** neither change has run yet. Both need to be checked at runtime in A/F.
-- Start-on-boot option: kept in `git stash` ("WIP: opción de activar al encender"). It doesn't compile yet (`materialButtonTextStyle` doesn't exist). Waiting for the professor's answer. Restore with `git stash pop`.
+- Start-on-boot option: **dropped** (2026-10-28). The professor agrees it doesn't make sense. The stash was deleted.
 - Emulator: KVM works, emulator 37.1.11 is installed. The SDK command-line tools and an Android 16 image (`system-images;android-36;google_apis;x86_64`) are missing. Installing them needs user approval.
 - Test audio: a PipeWire null sink plus `PULSE_SOURCE=<sink>.monitor` when launching the emulator feeds WAV files into the emulator's microphone without changing the system's default input.
 - The native libraries (libvosk, libjnidispatch) are 16 KB page aligned (0x4000). OK.
