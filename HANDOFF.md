@@ -1,6 +1,8 @@
 # HANDOFF: dismov course project
 
 ## Objective
+**Update 2026-10-28:** the professor asked the user to present Testigo at the symposium, around Nov 9-10, 2026. The date comes from a Google search and must be confirmed with the professor. The goal now is not to grow the app but to make sure it reliably does what it says, within the agreed scope: more testing, plus a review of the interface and the architecture.
+
 Professor's only instruction: "app y widget que empiece a grabar con comando de voz".
 He doesn't expect extras. One alternative to voice (a button) is fine. It must work flawlessly in a live demo.
 
@@ -68,23 +70,28 @@ This is not "a quick way to record". The goal is to **start audio recording for 
   - Whether ADTS files can still be played after the app is force-stopped mid-recording.
   - The first launch copies the model (58 MB) to storage. How long does it take?
 
-## Next steps (Validate phase, on the realme GT 6 over USB)
-1. User:
-   - Turns on Developer options and USB debugging.
-   - Connects the phone.
-   - Accepts the RSA prompt.
-   - Checks it shows up in `~/Android/Sdk/platform-tools/adb devices`.
-2. Install: `./gradlew installDebug`. Then watch the log with `adb logcat -s ProtectionService PhraseTester VoiceModel AndroidRuntime`.
-3. Checklist:
-   - Permissions flow.
-   - Save the phrase and test it.
-   - Protection from the app and from the widget.
-   - The trigger with the screen off and the phone in a pocket.
-   - Noise false positives: about 10 minutes of normal talk or TV.
-   - Stopping from the widget, from the notification (lock screen asks to unlock) and from the app.
-   - Back to listening after stopping.
-   - Manual record.
-   - Force-stop during a recording, then play the file.
-   - Mic busy (during a call).
-   - Battery after 1 hour of protection.
-   - Share and delete a recording.
+## Symposium hardening (2026-10-28): Research done, Plan waiting for approval
+- Decisions (2026-10-28):
+  - Plan approved.
+  - Workstream B starts now, offline, on `refactor/protection-controller`.
+  - The emulator waits for a good connection (laptop or home PC).
+  - **Private GitHub repo** created: https://github.com/Aselori/dismov. main and feat/voice-recorder are pushed.
+  - **Hide the secret phrase** in the status line and the text field (reveal button while editing).
+  - Presentation format: still unknown.
+- Start-on-boot option: kept in `git stash` ("WIP: opción de activar al encender"). It doesn't compile yet (`materialButtonTextStyle` doesn't exist). Waiting for the professor's answer. Restore with `git stash pop`.
+- Emulator: KVM works, emulator 37.1.11 is installed. The SDK command-line tools and an Android 16 image (`system-images;android-36;google_apis;x86_64`) are missing. Installing them needs user approval.
+- Test audio: a PipeWire null sink plus `PULSE_SOURCE=<sink>.monitor` when launching the emulator feeds WAV files into the emulator's microphone without changing the system's default input.
+- The native libraries (libvosk, libjnidispatch) are 16 KB page aligned (0x4000). OK.
+- Host tools: no espeak-ng or piper; ffmpeg is available. Positive samples must be the user's own recordings.
+- Workstreams:
+  - A. Emulator plus a WAV-to-microphone route.
+  - B. `ProtectionController` (plain Java) with tests for every transition.
+  - C. Recognition evaluation: hit rate, delay, false triggers per hour, threshold tuning.
+  - D. Interface review: every state, light/dark, large text, TalkBack, first-time setup order, hidden phrase.
+  - E. Test protocol and results, in Spanish, in `docs/`.
+  - F. Validation on the phone.
+- Order: A, then B, then C and D, then E. F when the phone is available.
+
+## Next steps (phone validation, later)
+1. Over USB: `./gradlew installDebug`, then `adb logcat -s ProtectionService PhraseTester VoiceModel AndroidRuntime`.
+2. Checklist: screen off, in a pocket, noise false positives, stop paths, back to listening, force-stop then play the file, mic busy during a call, battery after 1 h, share and delete.
