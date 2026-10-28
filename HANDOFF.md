@@ -78,6 +78,19 @@ This is not "a quick way to record". The goal is to **start audio recording for 
   - **Private GitHub repo** created: https://github.com/Aselori/dismov. main and feat/voice-recorder are pushed.
   - **Hide the secret phrase** in the status line and the text field (reveal button while editing).
   - Presentation format: still unknown.
+- **Progress (2026-10-28, branch `refactor/protection-controller`, not pushed):**
+  - B done (`c75a4de`):
+    - `ProtectionController` (plain Java) holds all the listen/record/retry logic.
+    - The service is now a thin adapter: `VoskEars` wraps Vosk, `AudioRecorder` wraps MediaRecorder.
+    - 28 controller tests; 39 tests in total, all passing.
+    - Two deliberate breaks of the controller (mutants) were caught: 4 failures and 1 failure.
+    - A notification "Protección detenida, toca para reactivar" now appears when the system restarts the service.
+  - Phrase hidden:
+    - The status no longer shows it.
+    - The field uses dots with a reveal toggle.
+    - A successful test doesn't repeat it.
+  - Lint: 0 errors.
+  - **NOT verified on a device or emulator:** neither change has run yet. Both need to be checked at runtime in A/F.
 - Start-on-boot option: kept in `git stash` ("WIP: opción de activar al encender"). It doesn't compile yet (`materialButtonTextStyle` doesn't exist). Waiting for the professor's answer. Restore with `git stash pop`.
 - Emulator: KVM works, emulator 37.1.11 is installed. The SDK command-line tools and an Android 16 image (`system-images;android-36;google_apis;x86_64`) are missing. Installing them needs user approval.
 - Test audio: a PipeWire null sink plus `PULSE_SOURCE=<sink>.monitor` when launching the emulator feeds WAV files into the emulator's microphone without changing the system's default input.
