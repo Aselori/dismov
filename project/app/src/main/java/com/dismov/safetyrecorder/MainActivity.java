@@ -13,6 +13,7 @@ import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
 import android.widget.Chronometer;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,6 +30,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.dismov.safetyrecorder.ProtectionState.Status;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -50,6 +52,10 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
     private MaterialButton testButton;
     private TextView testResult;
     private TextView recordingsEmpty;
+    private MaterialSwitch voiceStart;
+    private MaterialSwitch voiceStop;
+    private MaterialSwitch buttonStart;
+    private MaterialSwitch buttonStop;
     private RecordingsAdapter adapter;
 
     private Map<String, List<String>> vocabulary;
@@ -87,6 +93,11 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
         testButton = findViewById(R.id.button_test);
         testResult = findViewById(R.id.test_result);
         recordingsEmpty = findViewById(R.id.recordings_empty);
+        voiceStart = findViewById(R.id.switch_voice_start);
+        voiceStop = findViewById(R.id.switch_voice_stop);
+        buttonStart = findViewById(R.id.switch_button_start);
+        buttonStop = findViewById(R.id.switch_button_stop);
+        bindTriggerSwitches();
 
         RecyclerView list = findViewById(R.id.recordings_list);
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -168,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
     private void render() {
         Status status = ProtectionState.status();
         lastStatus = status;
-        boolean hasPhrase = AppPrefs.hasPhrase(this);
+        boolean canProtect = AppPrefs.canProtect(this);
         boolean recording = status == Status.RECORDING;
 
         statusChronometer.setVisibility(recording ? View.VISIBLE : View.GONE);
@@ -188,7 +199,12 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
                     break;
                 case LISTENING:
                     statusTitle.setText(R.string.state_listening);
-                    statusDetail.setText(R.string.detail_listening);
+                    statusDetail.setText(AppPrefs.buttonStart(this)
+                            ? R.string.detail_listening_button : R.string.detail_listening);
+                    break;
+                case ARMED:
+                    statusTitle.setText(R.string.state_listening);
+                    statusDetail.setText(R.string.detail_armed);
                     break;
                 case MIC_BUSY:
                     statusTitle.setText(R.string.state_mic_busy);
@@ -196,16 +212,66 @@ public class MainActivity extends AppCompatActivity implements ProtectionState.L
                     break;
                 default:
                     statusTitle.setText(R.string.state_off);
-                    statusDetail.setText(hasPhrase ? R.string.detail_off : R.string.detail_no_phrase);
+                    statusDetail.setText(offDetail());
             }
         }
 
         boolean protectionActive = ProtectionState.isProtectionOn() || (status != Status.OFF && !recording);
         protectionButton.setText(protectionActive ? R.string.action_disable_protection : R.string.action_enable_protection);
-        protectionButton.setEnabled(hasPhrase || protectionActive);
+        protectionButton.setEnabled(canProtect || protectionActive);
         recordButton.setText(recording ? R.string.action_stop : R.string.action_record);
 
         renderIssues();
+    }
+
+    /** Qué pasará al activar, según los métodos que se pueden usar ahora. */
+    private int offDetail() {
+        boolean voice = AppPrefs.voiceStart(this) && AppPrefs.hasPhrase(this);
+        boolean button = AppPrefs.buttonStart(this);
+        if (voice && button) {
+            return R.string.detail_off_both;
+        }
+        if (voice) {
+            return R.string.detail_off_voice;
+        }
+        return button ? R.string.detail_off_button : R.string.detail_cannot_protect;
+    }
+
+    // ---- Métodos de activación ----
+
+    private void bindTriggerSwitches() {
+        CompoundButton.OnCheckedChangeListener listener = (b, checked) -> onTriggerChanged(b);
+        for (MaterialSwitch sw : new MaterialSwitch[]{voiceStart, voiceStop, buttonStart, buttonStop}) {
+            sw.setOnCheckedChangeListener(null);
+        }
+        voiceStart.setChecked(AppPrefs.voiceStart(this));
+        voiceStop.setChecked(AppPrefs.voiceStop(this));
+        buttonStart.setChecked(AppPrefs.buttonStart(this));
+        buttonStop.setChecked(AppPrefs.buttonStop(this));
+        // "También la detiene" solo tiene sentido si el método está activo
+        voiceStop.setEnabled(voiceStart.isChecked());
+        buttonStop.setEnabled(buttonStart.isChecked());
+        for (MaterialSwitch sw : new MaterialSwitch[]{voiceStart, voiceStop, buttonStart, buttonStop}) {
+            sw.setOnCheckedChangeListener(listener);
+        }
+    }
+
+    private void onTriggerChanged(CompoundButton changed) {
+        if (!voiceStart.isChecked() && !buttonStart.isChecked()) {
+            Toast.makeText(this, R.string.triggers_need_one, Toast.LENGTH_SHORT).show();
+            changed.setOnCheckedChangeListener(null);
+            changed.setChecked(true);
+            bindTriggerSwitches();
+            return;
+        }
+        AppPrefs.setTriggers(this, voiceStart.isChecked(), voiceStop.isChecked(),
+                buttonStart.isChecked(), buttonStop.isChecked());
+        bindTriggerSwitches();
+        if (ProtectionState.isProtectionOn()) {
+            // Aplica los métodos nuevos sin desactivar la protección
+            ProtectionService.send(this, ProtectionService.ACTION_ENABLE);
+        }
+        render();
     }
 
     private void toggleProtection() {

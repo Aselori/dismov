@@ -9,10 +9,14 @@
     <string name="state_mic_busy">Micrófono ocupado</string>
     <string name="state_recording">Grabando</string>
 
-    <string name="detail_no_phrase">Primero guarda tu frase secreta (abajo).</string>
-    <string name="detail_off">Actívala y el teléfono escuchará tu frase secreta, aunque la pantalla esté apagada.</string>
+    <string name="detail_cannot_protect">Guarda tu frase secreta o activa el botón de encendido (abajo).</string>
+    <string name="detail_off_voice">Actívala y el teléfono escuchará tu frase secreta, aunque la pantalla esté apagada.</string>
+    <string name="detail_off_button">Actívala y podrás empezar a grabar con el botón de encendido 3 veces, aunque la pantalla esté apagada.</string>
+    <string name="detail_off_both">Actívala y podrás empezar a grabar con tu frase o con el botón de encendido 3 veces, aunque la pantalla esté apagada.</string>
     <string name="detail_starting">Cargando el reconocimiento de voz.</string>
     <string name="detail_listening">Escuchando tu frase. Al oírla, vibrará y empezará a grabar.</string>
+    <string name="detail_listening_button">Escuchando tu frase. Al oírla, o con el botón de encendido 3 veces, vibrará y empezará a grabar.</string>
+    <string name="detail_armed">Pulsa el botón de encendido 3 veces y empezará a grabar. Mientras tanto, el micrófono está cerrado.</string>
     <string name="detail_mic_busy">Otra app o una llamada está usando el micrófono. Se reintenta solo.</string>
     <string name="detail_recording">La grabación se guarda mientras avanza.</string>
     <string name="detail_recording_then_listen">Al detener, volverá a escuchar tu frase.</string>
@@ -30,6 +34,15 @@
     <string name="issue_action_allow">Permitir</string>
     <string name="issue_action_adjust">Ajustar</string>
     <string name="permission_go_settings">Activa el micrófono en Permisos.</string>
+
+    <!-- Métodos de activación -->
+    <string name="triggers_title">Cómo activar la grabación</string>
+    <string name="trigger_voice">Frase secreta</string>
+    <string name="trigger_button">Botón de encendido 3 veces</string>
+    <string name="trigger_button_help">No usa el micrófono mientras espera.</string>
+    <string name="trigger_also_stops">También la detiene</string>
+    <string name="triggers_help">Detener desde la notificación, el widget o la app siempre funciona.</string>
+    <string name="triggers_need_one">Deja al menos un método activo.</string>
 
     <!-- Frase secreta -->
     <string name="phrase_title">Frase secreta</string>
@@ -94,6 +107,7 @@
     <string name="widget_off_detail">Graba o activa la escucha</string>
     <string name="widget_starting_detail">Cargando reconocimiento de voz</string>
     <string name="widget_listening_detail">Escuchando tu frase</string>
+    <string name="widget_armed_detail">Botón de encendido 3 veces para grabar</string>
     <string name="widget_busy_detail">Reintentando…</string>
     <string name="widget_action_open">Abrir</string>
     <string name="widget_action_enable">Activar</string>
