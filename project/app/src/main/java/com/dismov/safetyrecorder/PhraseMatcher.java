@@ -17,6 +17,12 @@ public final class PhraseMatcher {
 
     public static final int MIN_WORDS = 2;
     public static final int MAX_WORDS = 6;
+
+    /**
+     * Confianza media mínima de las palabras reconocidas para empezar a grabar.
+     * Valor inicial; se ajusta con la evaluación de audio (aciertos y falsas activaciones).
+     */
+    public static final double MIN_CONFIDENCE = 0.5;
     private static final int MAX_GRAMMAR_PHRASES = 16;
     private static final Locale SPANISH = Locale.forLanguageTag("es");
 
@@ -114,6 +120,11 @@ public final class PhraseMatcher {
             json.append('"').append(p.replace("\\", "\\\\").replace("\"", "\\\"")).append("\", ");
         }
         return json.append("\"[unk]\"]").toString();
+    }
+
+    /** ¿Lo reconocido es la frase secreta, con confianza suficiente para empezar a grabar? */
+    public static boolean triggers(String recognized, double confidence, List<String> phraseWords) {
+        return confidence >= MIN_CONFIDENCE && matches(recognized, phraseWords);
     }
 
     /** ¿Lo reconocido contiene la frase completa, en orden y sin palabras intercaladas? */

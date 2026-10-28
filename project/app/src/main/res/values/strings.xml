@@ -79,6 +79,7 @@
     <string name="problem_no_phrase">Guarda una frase secreta en la app para activar la protección.</string>
     <string name="problem_model">No se pudo cargar el reconocimiento de voz.</string>
     <string name="problem_cannot_record">No se pudo empezar a grabar: el micrófono está ocupado.</string>
+    <string name="problem_protection_stopped">La protección se detuvo porque el sistema cerró la app. Toca aquí para reactivarla.</string>
     <string name="problem_recording_interrupted">La grabación se interrumpió. Lo grabado hasta ese momento se guardó.</string>
 
     <!-- Widget -->

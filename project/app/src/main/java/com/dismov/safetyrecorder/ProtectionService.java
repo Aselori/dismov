@@ -12,7 +12,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
-import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -32,20 +31,15 @@ import androidx.core.content.ContextCompat;
 
 import com.dismov.safetyrecorder.ProtectionState.Status;
 
-import org.vosk.Model;
-import org.vosk.Recognizer;
-import org.vosk.android.RecognitionListener;
-import org.vosk.android.SpeechService;
+import java.util.List;
 
-import java.io.File;
-import java.io.IOException;
+
 
 /**
- * Servicio en primer plano (tipo micrófono) que hace las dos cosas de la app:
- * escuchar la frase secreta con Vosk y grabar audio con MediaRecorder.
- * Nunca hace las dos a la vez: el micrófono solo lo puede usar uno.
+ * Servicio en primer plano (tipo micrófono). Conecta {@link ProtectionController}, que decide
+ * qué hacer, con Android: Vosk, MediaRecorder, la notificación, el widget y la vibración.
  */
-public class ProtectionService extends Service {
+public class ProtectionService extends Service implements ProtectionController.Output {
 
     private static final String TAG = "ProtectionService";
 
@@ -59,25 +53,13 @@ public class ProtectionService extends Service {
     private static final String CHANNEL_STATUS = "status";
     private static final String CHANNEL_PROBLEMS = "problems";
 
-    private static final float SAMPLE_RATE = 16000f;
-    private static final long LISTEN_RETRY_MS = 3000;
-    private static final long RECORD_RETRY_MS = 400;
-    private static final int RECORD_ATTEMPTS = 5;
     private static final long CONFIRM_VIBRATION_MS = 300;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable retryListening = this::startListening;
-    private final Runnable retryRecording = this::startRecording;
-
-    private SpeechService speechService;
-    private Recognizer recognizer;
-    private MediaRecorder recorder;
-    private File currentFile;
+    private ProtectionController controller;
+    private AudioRecorder recorder;
     private PowerManager.WakeLock wakeLock;
-    private boolean protectionOn;
     private boolean inForeground;
-    private boolean destroyed;
-    private int recordAttempts;
 
     public static void send(Context context, String action) {
         ContextCompat.startForegroundService(context, intent(context, action));
@@ -96,6 +78,20 @@ public class ProtectionService extends Service {
     public void onCreate() {
         super.onCreate();
         createChannels();
+        recorder = new AudioRecorder(this, () -> controller.onRecorderError());
+        VoskEars ears = new VoskEars(this, new VoskEars.Heard() {
+            @Override
+            public void onHeard(String text, double confidence) {
+                controller.onHeard(text, confidence);
+            }
+
+            @Override
+            public void onError() {
+                controller.onListenError();
+            }
+        });
+        controller = new ProtectionController(ears, recorder, new PrefsSettings(this),
+                new HandlerScheduler(handler), this);
     }
 
     @Override
@@ -111,20 +107,21 @@ public class ProtectionService extends Service {
             action = ACTION_ENABLE;
         }
         if (!enterForeground(restartedBySystem)) {
+            controller.foregroundDenied(restartedBySystem);
             return START_NOT_STICKY;
         }
         switch (action) {
             case ACTION_ENABLE:
-                enableProtection();
+                controller.enable();
                 break;
             case ACTION_DISABLE:
-                disableProtection();
+                controller.disable();
                 break;
             case ACTION_RECORD:
-                startRecording();
+                controller.record();
                 break;
             case ACTION_STOP:
-                stopRecordingAndContinue();
+                controller.stop();
                 break;
             default:
                 Log.w(TAG, "Acción desconocida: " + action);
@@ -134,10 +131,8 @@ public class ProtectionService extends Service {
 
     @Override
     public void onDestroy() {
-        destroyed = true;
+        controller.destroy();
         handler.removeCallbacksAndMessages(null);
-        releaseListener();
-        stopRecording();
         releaseWakeLock();
         if (ProtectionState.status() != Status.OFF) {
             ProtectionState.update(this, Status.OFF, false);
@@ -173,270 +168,43 @@ public class ProtectionService extends Service {
                     ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(),
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
                 } catch (RuntimeException ignored) {
-                    // No hay nada más que intentar; shutdown() detiene el servicio
+                    // No hay nada más que intentar; el controlador detiene el servicio
                 }
             }
-            showProblem(R.string.problem_cannot_start);
-            shutdown();
             return false;
         }
     }
 
-    private void shutdown() {
-        handler.removeCallbacksAndMessages(null);
-        releaseListener();
-        stopRecording();
-        protectionOn = false;
-        PhraseStore.setProtectionWanted(this, false);
+    // ---- Salidas del controlador ----
+
+    @Override
+    public void onStateChanged(Status status, boolean protectionOn) {
+        ProtectionState.update(this, status, protectionOn);
+        refreshNotification();
+    }
+
+    @Override
+    public void onRecordingStarted(boolean protectionOn) {
+        ProtectionState.startRecording(this, recorder.file(), SystemClock.elapsedRealtime(),
+                System.currentTimeMillis(), protectionOn);
+        refreshNotification();
+        vibrate();
+    }
+
+    @Override
+    public void onProblem(ProtectionController.Problem problem) {
+        showProblem(problem);
+    }
+
+    @Override
+    public void onShutdown() {
         releaseWakeLock();
-        ProtectionState.update(this, Status.OFF, false);
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         inForeground = false;
         stopSelf();
     }
 
-    // ---- Protección (escucha) ----
-
-    private void enableProtection() {
-        if (!PhraseStore.hasPhrase(this)) {
-            showProblem(R.string.problem_no_phrase);
-            if (recorder == null) {
-                shutdown();
-            }
-            return;
-        }
-        protectionOn = true;
-        PhraseStore.setProtectionWanted(this, true);
-        if (recorder != null) {
-            // Grabando: al detener, volverá a escuchar
-            setStatus(Status.RECORDING);
-            return;
-        }
-        // Reinicia la escucha por si cambió la frase
-        releaseListener();
-        startListening();
-    }
-
-    private void disableProtection() {
-        protectionOn = false;
-        PhraseStore.setProtectionWanted(this, false);
-        if (recorder != null) {
-            // Una grabación en curso no se corta; al detenerla, el servicio termina
-            setStatus(Status.RECORDING);
-        } else {
-            shutdown();
-        }
-    }
-
-    private void startListening() {
-        handler.removeCallbacks(retryListening);
-        if (!protectionOn || recorder != null || speechService != null || destroyed) {
-            return;
-        }
-        String grammar = PhraseStore.grammar(this);
-        if (grammar == null) {
-            showProblem(R.string.problem_no_phrase);
-            shutdown();
-            return;
-        }
-        setStatus(Status.STARTING);
-        VoiceModel.load(this, new VoiceModel.Callback<Model>() {
-            @Override
-            public void onReady(Model model) {
-                openListener(model, grammar);
-            }
-
-            @Override
-            public void onError(Exception e) {
-                showProblem(R.string.problem_model);
-                if (recorder == null) {
-                    shutdown();
-                }
-            }
-        });
-    }
-
-    private void openListener(Model model, String grammar) {
-        if (!protectionOn || recorder != null || speechService != null || destroyed) {
-            return;
-        }
-        try {
-            recognizer = new Recognizer(model, SAMPLE_RATE, grammar);
-            recognizer.setWords(true);
-        } catch (IOException e) {
-            Log.e(TAG, "Gramática inválida: " + grammar, e);
-            releaseListener();
-            showProblem(R.string.problem_no_phrase);
-            shutdown();
-            return;
-        }
-        try {
-            speechService = new SpeechService(recognizer, SAMPLE_RATE);
-        } catch (IOException e) {
-            // Otra app (o una llamada) tiene el micrófono: se reintenta solo
-            Log.w(TAG, "Micrófono ocupado", e);
-            releaseListener();
-            setStatus(Status.MIC_BUSY);
-            handler.postDelayed(retryListening, LISTEN_RETRY_MS);
-            return;
-        }
-        speechService.startListening(listener);
-        setStatus(Status.LISTENING);
-    }
-
-    private void releaseListener() {
-        if (speechService != null) {
-            speechService.cancel();
-            speechService.shutdown();
-            speechService = null;
-        }
-        if (recognizer != null) {
-            recognizer.close();
-            recognizer = null;
-        }
-    }
-
-    private final RecognitionListener listener = new RecognitionListener() {
-        @Override
-        public void onPartialResult(String hypothesis) {
-            // Solo se actúa con resultados completos: los parciales cambian mientras se habla
-        }
-
-        @Override
-        public void onResult(String hypothesis) {
-            handleHypothesis(hypothesis);
-        }
-
-        @Override
-        public void onFinalResult(String hypothesis) {
-            handleHypothesis(hypothesis);
-        }
-
-        @Override
-        public void onError(Exception e) {
-            if (speechService == null) {
-                return;
-            }
-            Log.w(TAG, "Error al escuchar", e);
-            releaseListener();
-            setStatus(Status.MIC_BUSY);
-            handler.postDelayed(retryListening, LISTEN_RETRY_MS);
-        }
-
-        @Override
-        public void onTimeout() {
-            // Sin tiempo límite: no aplica
-        }
-    };
-
-    private void handleHypothesis(String json) {
-        if (ProtectionState.status() != Status.LISTENING) {
-            return;
-        }
-        Hypothesis h = Hypothesis.parse(json);
-        if (h.text.isEmpty()) {
-            return;
-        }
-        boolean triggers = h.triggers(PhraseStore.words(this));
-        Log.d(TAG, "Escuchado: \"" + h.text + "\" confianza=" + h.confidence + " activa=" + triggers);
-        if (triggers) {
-            startRecording();
-        }
-    }
-
-    // ---- Grabación ----
-
-    private void startRecording() {
-        handler.removeCallbacks(retryRecording);
-        handler.removeCallbacks(retryListening);
-        if (recorder != null || destroyed) {
-            return;
-        }
-        releaseListener(); // libera el micrófono para MediaRecorder
-
-        File file = Recordings.newFile(this);
-        @SuppressWarnings("deprecation") // el constructor sin Context es el único antes de Android 12
-        MediaRecorder r = Build.VERSION.SDK_INT >= 31 ? new MediaRecorder(this) : new MediaRecorder();
-        try {
-            r.setAudioSource(MediaRecorder.AudioSource.MIC);
-            // ADTS guarda el audio en bloques independientes: si el teléfono se apaga a mitad,
-            // lo grabado hasta ese momento se puede reproducir
-            r.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
-            r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            r.setAudioChannels(1);
-            r.setAudioSamplingRate(44100);
-            r.setAudioEncodingBitRate(64000);
-            r.setOutputFile(file.getAbsolutePath());
-            r.setOnErrorListener((mr, what, extra) -> handler.post(() -> {
-                Log.e(TAG, "Error de MediaRecorder what=" + what + " extra=" + extra);
-                showProblem(R.string.problem_recording_interrupted);
-                stopRecordingAndContinue();
-            }));
-            r.prepare();
-            r.start();
-        } catch (IOException | RuntimeException e) {
-            Log.w(TAG, "No se pudo iniciar la grabación (intento " + (recordAttempts + 1) + ")", e);
-            r.release();
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
-            if (++recordAttempts < RECORD_ATTEMPTS) {
-                // Justo después de soltar Vosk el micrófono puede tardar en liberarse
-                handler.postDelayed(retryRecording, RECORD_RETRY_MS);
-                return;
-            }
-            recordAttempts = 0;
-            showProblem(R.string.problem_cannot_record);
-            continueAfterRecording();
-            return;
-        }
-        recordAttempts = 0;
-        recorder = r;
-        currentFile = file;
-        ProtectionState.startRecording(this, file, SystemClock.elapsedRealtime(), System.currentTimeMillis(), protectionOn);
-        refreshNotification();
-        vibrate();
-    }
-
-    private void stopRecordingAndContinue() {
-        stopRecording();
-        continueAfterRecording();
-    }
-
-    private void continueAfterRecording() {
-        if (protectionOn) {
-            startListening();
-        } else {
-            shutdown();
-        }
-    }
-
-    private void stopRecording() {
-        handler.removeCallbacks(retryRecording);
-        recordAttempts = 0;
-        if (recorder == null) {
-            return;
-        }
-        try {
-            recorder.stop();
-        } catch (RuntimeException e) {
-            // stop() falla si todavía no llegó audio; lo que haya en el archivo se conserva
-            Log.w(TAG, "stop() sin audio válido", e);
-        }
-        recorder.release();
-        recorder = null;
-        if (currentFile != null && currentFile.length() == 0) {
-            //noinspection ResultOfMethodCallIgnored
-            currentFile.delete();
-        }
-        currentFile = null;
-    }
-
     // ---- Estado y notificaciones ----
-
-    private void setStatus(Status status) {
-        ProtectionState.update(this, status, protectionOn);
-        refreshNotification();
-    }
 
     private void createChannels() {
         NotificationManager nm = getSystemService(NotificationManager.class);
@@ -512,14 +280,37 @@ public class ProtectionService extends Service {
         }
     }
 
-    private void showProblem(int textRes) {
-        Log.w(TAG, "Problema: " + getString(textRes));
+    private void showProblem(ProtectionController.Problem problem) {
+        int textRes;
+        PendingIntent tap = openAppIntent();
+        switch (problem) {
+            case NO_PHRASE:
+                textRes = R.string.problem_no_phrase;
+                break;
+            case MODEL:
+                textRes = R.string.problem_model;
+                break;
+            case CANNOT_RECORD:
+                textRes = R.string.problem_cannot_record;
+                break;
+            case RECORDING_INTERRUPTED:
+                textRes = R.string.problem_recording_interrupted;
+                break;
+            case PROTECTION_STOPPED:
+                textRes = R.string.problem_protection_stopped;
+                // Tocar la notificación sí permite volver a usar el micrófono
+                tap = pendingIntent(this, ACTION_ENABLE);
+                break;
+            default:
+                textRes = R.string.problem_cannot_start;
+        }
+        Log.w(TAG, "Problema: " + problem);
         Notification n = new NotificationCompat.Builder(this, CHANNEL_PROBLEMS)
                 .setSmallIcon(R.drawable.ic_testigo)
                 .setContentTitle(getString(R.string.problem_title))
                 .setContentText(getString(textRes))
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(getString(textRes)))
-                .setContentIntent(openAppIntent())
+                .setContentIntent(tap)
                 .setAutoCancel(true)
                 .build();
         notifySafely(PROBLEM_NOTIFICATION_ID, n);
@@ -540,7 +331,7 @@ public class ProtectionService extends Service {
 
     // ---- Recursos del sistema ----
 
-    @SuppressLint("WakelockTimeout") // se libera en shutdown()/onDestroy(); la protección no tiene duración fija
+    @SuppressLint("WakelockTimeout") // se libera en onShutdown()/onDestroy(); la protección no tiene duración fija
     private void acquireWakeLock() {
         if (wakeLock == null) {
             PowerManager pm = getSystemService(PowerManager.class);
@@ -573,6 +364,48 @@ public class ProtectionService extends Service {
             vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM));
         } else {
             vibrator.vibrate(effect, new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build());
+        }
+    }
+
+    /** Preferencias que necesita el controlador. */
+    private static final class PrefsSettings implements ProtectionController.Settings {
+        private final Context context;
+
+        PrefsSettings(Context context) {
+            this.context = context.getApplicationContext();
+        }
+
+        @Override
+        public String grammar() {
+            return PhraseStore.grammar(context);
+        }
+
+        @Override
+        public List<String> phraseWords() {
+            return PhraseStore.words(context);
+        }
+
+        @Override
+        public void setProtectionWanted(boolean wanted) {
+            PhraseStore.setProtectionWanted(context, wanted);
+        }
+    }
+
+    private static final class HandlerScheduler implements ProtectionController.Scheduler {
+        private final Handler handler;
+
+        HandlerScheduler(Handler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void schedule(Runnable task, long delayMs) {
+            handler.postDelayed(task, delayMs);
+        }
+
+        @Override
+        public void cancel(Runnable task) {
+            handler.removeCallbacks(task);
         }
     }
 }

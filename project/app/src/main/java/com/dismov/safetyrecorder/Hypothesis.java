@@ -13,12 +13,6 @@ final class Hypothesis {
 
     private static final String TAG = "Hypothesis";
 
-    /**
-     * Confianza media mínima de las palabras reconocidas. Valor inicial conservador:
-     * se ajusta en la validación con el teléfono (en bolsillo, con ruido).
-     */
-    static final double MIN_CONFIDENCE = 0.5;
-
     final String text;
     final double confidence;
 
@@ -29,7 +23,7 @@ final class Hypothesis {
 
     /** ¿Es la frase secreta, con suficiente confianza para empezar a grabar? */
     boolean triggers(List<String> phraseWords) {
-        return confidence >= MIN_CONFIDENCE && PhraseMatcher.matches(text, phraseWords);
+        return PhraseMatcher.triggers(text, confidence, phraseWords);
     }
 
     static Hypothesis parse(String json) {
