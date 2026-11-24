@@ -1,0 +1,51 @@
+# Compila el APK debug de Testigo y lo publica como Release para descargarlo desde el teléfono.
+name: Compilar APK
+
+on:
+  push:
+    branches: [ci/build-apk]
+    paths:
+      - "project/**"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Descargar modelo de voz
+        run: ./scripts/download-model.sh
+
+      - name: Compilar APK debug
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Publicar Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          SHORT=$(git rev-parse --short HEAD)
+          TAG="testigo-debug-${{ github.run_number }}"
+          cp "$APK" "testigo-debug-$SHORT.apk"
+          gh release create "$TAG" "testigo-debug-$SHORT.apk" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Testigo debug #${{ github.run_number }} ($SHORT)" \
+            --notes "APK debug compilado desde $GITHUB_REF_NAME @ $SHORT."
